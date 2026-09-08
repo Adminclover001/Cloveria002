@@ -40,87 +40,19 @@ const STORAGE_KEYS = {
   ACTIVE_USER: 'clover_active_user',
 };
 
-// Initial Seed Data
+// Initial Seed Data - Real institutional setup
 const DEFAULT_USERS: User[] = [
   {
     id: 'usr_admin',
-    username: 'admin_demo',
-    passwordHash: hashPassword('Clover2026!'),
+    username: 'admin',
+    passwordHash: hashPassword('CloverHills2026!'),
     role: 'administrador',
-    fullName: 'Mtra. Elena Rostova',
+    fullName: 'Administrador General',
     firstLogin: false,
     active: true,
-    createdAt: '2026-01-15T08:00:00.000Z',
+    createdAt: '2026-03-01T08:00:00.000Z',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
   },
-  {
-    id: 'usr_teacher_1',
-    username: 'profesor_demo',
-    passwordHash: hashPassword('Clover2026!'),
-    role: 'profesor',
-    fullName: 'Prof. Carlos Mendoza',
-    firstLogin: false,
-    active: true,
-    teacherCode: 'PRF-2026-08',
-    subject: 'Ciencias Naturales y Matemáticas',
-    specialty: 'Ciencias Naturales y Matemáticas',
-    createdAt: '2026-02-01T09:30:00.000Z',
-    avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'usr_teacher_2',
-    username: 'carmen_historia',
-    passwordHash: hashPassword('Clover2026!'),
-    role: 'profesor',
-    fullName: 'Mtra. Carmen Silva',
-    firstLogin: false,
-    active: true,
-    teacherCode: 'PRF-2026-12',
-    subject: 'Historia y Geografía',
-    specialty: 'Historia y Geografía',
-    createdAt: '2026-02-05T09:30:00.000Z',
-    avatar: 'https://images.unsplash.com/photo-1573496799652-408c2ac9fe98?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'usr_student_1',
-    username: 'estudiante_demo',
-    passwordHash: hashPassword('Clover2026!'),
-    role: 'estudiante',
-    fullName: 'Sofía Ramirez Cruz',
-    firstLogin: false,
-    active: true,
-    grade: '3° Secundaria',
-    groupId: 'grp_sec3_a',
-    groupName: '3° Secundaria - Grupo A',
-    createdAt: '2026-02-10T10:00:00.000Z',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'usr_student_2',
-    username: 'carlos_estudiante',
-    passwordHash: hashPassword('Clover2026!'),
-    role: 'estudiante',
-    fullName: 'Carlos Eduardo Peña',
-    firstLogin: false,
-    active: true,
-    grade: '3° Secundaria',
-    groupId: 'grp_sec3_a',
-    groupName: '3° Secundaria - Grupo A',
-    createdAt: '2026-02-12T11:00:00.000Z',
-  },
-  {
-    id: 'usr_student_new',
-    username: 'nuevo_estudiante',
-    passwordHash: hashPassword('Clover2026!'),
-    role: 'estudiante',
-    fullName: 'Mateo Morales (Primer Acceso)',
-    firstLogin: true, // triggers mandatory change
-    active: true,
-    grade: '2° Secundaria',
-    groupId: 'grp_sec2_b',
-    groupName: '2° Secundaria - Grupo B',
-    createdAt: '2026-03-01T14:00:00.000Z',
-  }
 ];
 
 const DEFAULT_COURSES: Course[] = [
@@ -567,6 +499,60 @@ class StorageDB {
       console.error('Error cleaning conversation symbols:', e);
     }
 
+    // Migration: Purge legacy demo users and ensure main secure admin account exists
+    try {
+      const storedUsers = this.get<User[]>(STORAGE_KEYS.USERS, []);
+      const demoUsernames = [
+        'admin_demo',
+        'profesor_demo',
+        'carmen_historia',
+        'estudiante_demo',
+        'carlos_estudiante',
+        'nuevo_estudiante',
+      ];
+
+      const cleanedUsers = storedUsers.filter(
+        (u) => !demoUsernames.includes(u.username.toLowerCase().trim())
+      );
+
+      let hasAdmin = cleanedUsers.some((u) => u.role === 'administrador');
+      if (!hasAdmin) {
+        cleanedUsers.unshift({
+          id: 'usr_admin',
+          username: 'admin',
+          passwordHash: hashPassword('CloverHills2026!'),
+          role: 'administrador',
+          fullName: 'Administrador General',
+          firstLogin: false,
+          active: true,
+          createdAt: '2026-03-01T08:00:00.000Z',
+          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+        });
+      } else {
+        // Unlock firstLogin for existing admin so they are not blocked upon start
+        cleanedUsers = cleanedUsers.map((u) =>
+          u.role === 'administrador' ? { ...u, firstLogin: false } : u
+        );
+      }
+
+      this.set(STORAGE_KEYS.USERS, cleanedUsers);
+
+      // Ensure active session is set to admin so user can start as admin immediately
+      const active = this.get<User | null>(STORAGE_KEYS.ACTIVE_USER, null);
+      if (
+        !active ||
+        demoUsernames.includes(active.username?.toLowerCase().trim() || '') ||
+        !cleanedUsers.some((u) => u.id === active.id)
+      ) {
+        const adminUser = cleanedUsers.find((u) => u.role === 'administrador') || cleanedUsers[0];
+        if (adminUser) {
+          this.set(STORAGE_KEYS.ACTIVE_USER, adminUser);
+        }
+      }
+    } catch (e) {
+      console.error('Error migrating users:', e);
+    }
+
     // Auto-migrate and ensure teachers have their assigned subject
     try {
       const storedUsers = this.get<User[]>(STORAGE_KEYS.USERS, []);
@@ -613,6 +599,11 @@ class StorageDB {
     } else {
       users.push(user);
     }
+    this.set(STORAGE_KEYS.USERS, users);
+  }
+
+  public deleteUser(id: string): void {
+    const users = this.getUsers().filter((u) => u.id !== id);
     this.set(STORAGE_KEYS.USERS, users);
   }
 
@@ -765,10 +756,15 @@ class StorageDB {
 
   // Active User / Session
   public getCurrentUser(): User | null {
-    const user = this.get<User | null>(STORAGE_KEYS.ACTIVE_USER, null);
-    if (user) return user;
-    const allUsers = this.getUsers();
-    return allUsers.find((u) => u.username === 'estudiante_demo') || allUsers[0] || null;
+    const active = this.get<User | null>(STORAGE_KEYS.ACTIVE_USER, null);
+    if (active) return active;
+    // Default to admin user for direct administration configuration
+    const admin = this.getUsers().find((u) => u.role === 'administrador');
+    if (admin) {
+      this.setCurrentUser(admin);
+      return admin;
+    }
+    return null;
   }
 
   public setCurrentUser(user: User | null): void {

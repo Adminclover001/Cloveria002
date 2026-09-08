@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { Lock, KeyRound, ShieldAlert, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Lock, KeyRound, ShieldAlert, CheckCircle2, Eye, EyeOff, LogOut } from 'lucide-react';
 import { User } from '../types';
-import { db } from '../services/db';
+import { db, hashPassword } from '../services/db';
 
 interface FirstLoginPasswordChangeModalProps {
   user: User;
   onPasswordChanged: (updatedUser: User) => void;
+  onLogout?: () => void;
 }
 
 export const FirstLoginPasswordChangeModal: React.FC<FirstLoginPasswordChangeModalProps> = ({
   user,
   onPasswordChanged,
+  onLogout,
 }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -32,8 +34,13 @@ export const FirstLoginPasswordChangeModal: React.FC<FirstLoginPasswordChangeMod
       return;
     }
 
-    if (newPassword === 'Clover2026!') {
-      setError('No puedes utilizar la contraseña temporal por defecto. Elige una nueva contraseña.');
+    if (newPassword === 'Clover2026!' || newPassword === 'CloverHills2026!') {
+      setError('No puedes utilizar la contraseña temporal inicial. Elige una nueva contraseña personal.');
+      return;
+    }
+
+    if (hashPassword(newPassword) === user.passwordHash) {
+      setError('La nueva contraseña no puede ser idéntica a tu clave temporal actual.');
       return;
     }
 
@@ -44,6 +51,7 @@ export const FirstLoginPasswordChangeModal: React.FC<FirstLoginPasswordChangeMod
       if (success) {
         const updated = db.getUserById(user.id);
         if (updated) {
+          db.setActiveUser(updated);
           onPasswordChanged(updated);
         }
       } else {
@@ -135,6 +143,19 @@ export const FirstLoginPasswordChangeModal: React.FC<FirstLoginPasswordChangeMod
               )}
             </button>
           </div>
+
+          {onLogout && (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={onLogout}
+                className="text-xs text-slate-400 hover:text-rose-600 font-medium inline-flex items-center gap-1.5 transition"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Cancelar y cerrar sesión</span>
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

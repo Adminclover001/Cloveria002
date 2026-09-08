@@ -20,11 +20,14 @@ import { PWAInstallButton } from './PWAInstallButton';
 interface NavbarProps {
   user: User;
   onLogout: () => void;
-  onOpenHelp: () => void;
+  onOpenHelp?: () => void;
   onOpenProfile: () => void;
-  onNavigateHome: () => void;
+  onNavigateHome?: () => void;
   onToggleSidebar?: () => void;
   isSidebarOpen?: boolean;
+  currentView?: string;
+  onNavigate?: (view: string) => void;
+  onSwitchRole?: (role: any) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -35,6 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateHome,
   onToggleSidebar,
   isSidebarOpen,
+  onNavigate,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>(
@@ -206,21 +210,28 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="btn-user-profile"
             onClick={onOpenProfile}
-            className="flex items-center gap-2.5 p-1 sm:px-2.5 sm:py-1.5 rounded-xl hover:bg-slate-100 transition focus:outline-none"
-            title="Ver mi perfil"
+            className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1.5 rounded-xl hover:bg-slate-100 transition focus:outline-none group border border-transparent hover:border-slate-200"
+            title="Mi Perfil: Editar nombre, foto y contraseña"
           >
-            <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+            <div className="relative w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
               {user.avatar ? (
-                <img src={user.avatar} alt={user.fullName} className="w-full h-full object-cover" />
+                <img src={user.avatar} alt={user.fullName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               ) : (
                 <UserIcon className="w-4 h-4 text-slate-600" />
               )}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                <span className="text-[9px] font-bold">Editar</span>
+              </div>
             </div>
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[120px]">
+              <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[130px] group-hover:text-[#188E40] transition">
                 {user.fullName.split(' ')[0]}
               </span>
-              <span className="text-[10px] text-slate-500 capitalize">{user.role}</span>
+              <span className="text-[10px] text-slate-500 truncate max-w-[130px]" title={user.role === 'profesor' ? (user.subject || user.specialty || 'Docente') : user.role}>
+                {user.role === 'profesor' && (user.subject || user.specialty)
+                  ? user.subject || user.specialty
+                  : user.role}
+              </span>
             </div>
           </button>
 

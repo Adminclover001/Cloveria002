@@ -3,6 +3,7 @@ import { User, UserRole, ChatMode } from './types';
 import { db } from './services/db';
 import { LoginView } from './auth/LoginView';
 import { FirstLoginPasswordChangeModal } from './auth/FirstLoginPasswordChangeModal';
+import { UserProfileModal } from './components/UserProfileModal';
 import { Navbar } from './components/Navbar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { StudentDashboard } from './pages/StudentDashboard';
@@ -22,6 +23,7 @@ export default function App() {
     const user = db.getCurrentUser();
     return !!(user && user.firstLogin);
   });
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [chatInitialTopic, setChatInitialTopic] = useState<string | undefined>(undefined);
   const [chatInitialMode, setChatInitialMode] = useState<ChatMode>('general');
@@ -94,6 +96,7 @@ export default function App() {
         onNavigate={(view) => setCurrentView(view)}
         onLogout={handleLogout}
         onSwitchRole={handleSwitchRole}
+        onOpenProfile={() => setShowProfileModal(true)}
       />
 
       {/* Main Workspace Container */}
@@ -123,7 +126,10 @@ export default function App() {
             )}
 
             {currentUser.role === 'administrador' && (
-              <AdminDashboard user={currentUser} />
+              <AdminDashboard
+                user={currentUser}
+                onOpenProfile={() => setShowProfileModal(true)}
+              />
             )}
           </>
         )}
@@ -247,6 +253,7 @@ export default function App() {
         <FirstLoginPasswordChangeModal
           user={currentUser}
           onPasswordChanged={handlePasswordChanged}
+          onLogout={handleLogout}
         />
       )}
     </div>

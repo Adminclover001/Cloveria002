@@ -21,13 +21,36 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+
+  const handleDirectAdminLogin = () => {
+    setLoading(true);
+    setErrorMsg('');
+    setTimeout(() => {
+      const adminUser = db.getUsers().find((u) => u.role === 'administrador');
+      if (adminUser) {
+        db.setActiveUser(adminUser);
+        db.addAuditLog({
+          userId: adminUser.id,
+          userName: adminUser.fullName,
+          userRole: adminUser.role,
+          action: 'INICIO_SESION_ADMIN',
+          details: `Acceso directo como Administrador para configuración inicial de perfil.`,
+        });
+        setLoading(false);
+        onLoginSuccess(adminUser);
+      } else {
+        setErrorMsg('No se encontró la cuenta de Administrador. Por favor recarga la página.');
+        setLoading(false);
+      }
+    }, 200);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +68,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
       if (!user) {
         setErrorMsg('Usuario no encontrado en Clover Hills. Verifica tu nombre de usuario.');
+        setLoading(false);
+        return;
+      }
+
+      // Restrict to administrator for now
+      if (user.role !== 'administrador') {
+        setErrorMsg('Por el momento el acceso está reservado exclusivamente para la cuenta de Administrador.');
         setLoading(false);
         return;
       }
@@ -68,7 +98,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         userName: user.fullName,
         userRole: user.role,
         action: 'INICIO_SESION',
-        details: `Inicio de sesión exitoso desde el portal escolar.`,
+        details: `Inicio de sesión exitoso como Administrador desde el portal escolar.`,
       });
 
       if (rememberMe) {
@@ -77,13 +107,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
       setLoading(false);
       onLoginSuccess(user);
-    }, 450);
-  };
-
-  const handleQuickLogin = (demoUser: string, demoPass: string) => {
-    setUsername(demoUser);
-    setPassword(demoPass);
-    setErrorMsg('');
+    }, 350);
   };
 
   return (
@@ -147,6 +171,28 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               </div>
             )}
 
+            {/* Direct Admin Entrance Button for quick access */}
+            <div className="mb-4">
+              <button
+                type="button"
+                id="btn-direct-admin-login"
+                onClick={handleDirectAdminLogin}
+                disabled={loading}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#188E40] via-[#157c37] to-[#126830] hover:brightness-105 active:scale-98 text-white font-bold text-sm shadow-md shadow-[#188E40]/20 transition flex items-center justify-center gap-2.5"
+              >
+                <Shield className="w-5 h-5 text-[#F39200]" />
+                <span>Acceder como Administrador (1 Clic)</span>
+              </button>
+            </div>
+
+            <div className="relative flex py-2 items-center mb-4">
+              <div className="flex-grow border-t border-slate-200/80"></div>
+              <span className="flex-shrink mx-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                o ingresar con contraseña
+              </span>
+              <div className="flex-grow border-t border-slate-200/80"></div>
+            </div>
+
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Username field */}
@@ -163,7 +209,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Ej. estudiante_demo"
+                    placeholder="Ingresa tu usuario institucional"
                     autoComplete="username"
                     required
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#188E40] focus:ring-2 focus:ring-[#188E40]/20 text-sm text-slate-900 bg-white placeholder:text-slate-400 transition"
@@ -217,7 +263,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   <span>Recordar sesión</span>
                 </label>
 
-                <span className="text-[11px] text-slate-400">Acceso institucional</span>
+                <span className="text-[11px] text-slate-400">Acceso institucional seguro</span>
               </div>
 
               {/* Submit Button (Orange Action Button) */}
@@ -238,58 +284,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               </button>
             </form>
 
-            {/* Quick-fill Demo Accounts Section */}
-            <div className="mt-7 pt-6 border-t border-slate-100">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 text-center">
-                Cuentas de demostración (Click para autocompletar)
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  id="btn-demo-student"
-                  onClick={() => handleQuickLogin('estudiante_demo', 'Clover2026!')}
-                  className="flex flex-col items-center p-2 rounded-xl border border-lime-200 bg-lime-50/70 hover:bg-lime-100 text-slate-800 transition"
-                  title="Ingresar como estudiante"
-                >
-                  <GraduationCap className="w-4 h-4 text-[#188E40] mb-0.5" />
-                  <span className="text-[11px] font-bold text-slate-800">Estudiante</span>
-                  <span className="text-[9px] text-slate-500">Sofía R.</span>
-                </button>
-
-                <button
-                  type="button"
-                  id="btn-demo-teacher"
-                  onClick={() => handleQuickLogin('profesor_demo', 'Clover2026!')}
-                  className="flex flex-col items-center p-2 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-slate-800 transition"
-                  title="Ingresar como profesor"
-                >
-                  <BookOpen className="w-4 h-4 text-[#188E40] mb-0.5" />
-                  <span className="text-[11px] font-bold text-slate-800">Profesor</span>
-                  <span className="text-[9px] text-slate-500">Carlos M.</span>
-                </button>
-
-                <button
-                  type="button"
-                  id="btn-demo-admin"
-                  onClick={() => handleQuickLogin('admin_demo', 'Clover2026!')}
-                  className="flex flex-col items-center p-2 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-slate-800 transition"
-                  title="Ingresar como administrador"
-                >
-                  <Shield className="w-4 h-4 text-[#F39200] mb-0.5" />
-                  <span className="text-[11px] font-bold text-slate-800">Admin</span>
-                  <span className="text-[9px] text-slate-500">Elena R.</span>
-                </button>
-              </div>
-
-              {/* First-login test hint */}
-              <div className="mt-3 text-center">
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('nuevo_estudiante', 'Clover2026!')}
-                  className="text-[11px] text-slate-500 hover:text-[#188E40] underline"
-                >
-                  Probar flujo de primer inicio obligatorio (nuevo_estudiante)
-                </button>
+            {/* Institutional Security Notice */}
+            <div className="mt-6 pt-5 border-t border-slate-100">
+              <div className="rounded-xl bg-slate-50 border border-slate-200/70 p-3.5 text-center">
+                <p className="text-[11px] font-semibold text-slate-700">
+                  Portal Institucional Clover Hills
+                </p>
+                <p className="text-[10.5px] text-slate-500 mt-1 leading-relaxed">
+                  Ingresa con las credenciales oficiales emitidas por la administración escolar. Si es tu primer ingreso o tu clave fue restablecida, el sistema te solicitará definir una nueva contraseña personalizada.
+                </p>
+                <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
+                  <Shield className="w-3.5 h-3.5 text-[#188E40]" />
+                  <span>Acceso de Administrador inicial: <strong className="text-slate-600 font-mono">admin</strong> / <strong className="text-slate-600 font-mono">CloverHills2026!</strong></span>
+                </div>
               </div>
             </div>
 

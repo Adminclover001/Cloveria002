@@ -22,12 +22,16 @@ import {
   Sparkles,
   AlertTriangle,
   Edit2,
+  Trash2,
+  UserCheck,
+  UserX,
 } from 'lucide-react';
 import { User, Course, Subject, Group, AuditLog, UserRole } from '../types';
 import { db, hashPassword } from '../services/db';
 
 interface AdminDashboardProps {
   user: User;
+  onOpenProfile?: () => void;
 }
 
 type AdminTab =
@@ -41,7 +45,7 @@ type AdminTab =
   | 'auditoria'
   | 'seguridad';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onOpenProfile }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('resumen');
   const [users, setUsers] = useState<User[]>(db.getUsers());
   const [courses, setCourses] = useState<Course[]>(db.getCourses());
@@ -56,6 +60,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   // New User Credential Generator Modal
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [newFullName, setNewFullName] = useState('');
+  const [newCustomUsername, setNewCustomUsername] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('estudiante');
   const [newGrade, setNewGrade] = useState('3° Secundaria');
   const [newSpecialty, setNewSpecialty] = useState('Ciencias Naturales y Matemáticas');
@@ -67,6 +72,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     subject?: string;
   } | null>(null);
   const [copiedCreds, setCopiedCreds] = useState(false);
+
+  // Edit User Modal
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('estudiante');
+  const [editGrade, setEditGrade] = useState('3° Secundaria');
+  const [editSubject, setEditSubject] = useState('Ciencias Naturales y Matemáticas');
+  const [editActive, setEditActive] = useState(true);
+  const [editForcePasswordChange, setEditForcePasswordChange] = useState(false);
+  const [editError, setEditError] = useState('');
 
   // Edit Teacher Subject Modal
   const [editingTeacherSubject, setEditingTeacherSubject] = useState<User | null>(null);
@@ -123,23 +139,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     e.preventDefault();
     if (!newFullName.trim()) return;
 
-    // Generate clean username (e.g. est_sofia_26)
-    const normalizedName = newFullName
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .split(' ');
-    const prefix = newRole === 'estudiante' ? 'est' : newRole === 'profesor' ? 'prf' : 'adm';
-    const cleanFirst = normalizedName[0] || 'user';
-    const cleanLast = normalizedName[1] || 'clover';
-    const generatedUsername = `${prefix}_${cleanFirst.slice(0, 4)}_${cleanLast.slice(0, 4)}_${Math.floor(10 + Math.random() * 90)}`;
+    let targetUsername = newCustomUsername.trim().toLowerCase();
+    if (!targetUsername) {
+      // Generate clean institutional username (e.g. est_sofia_26)
+      const normalizedName = newFullName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .split(' ');
+      const prefix = newRole === 'estudiante' ? 'est' : newRole === 'profesor' ? 'prf' : 'adm';
+      const cleanFirst = normalizedName[0] || 'user';
+      const cleanLast = normalizedName[1] || 'clover';
+      targetUsername = `${prefix}_${cleanFirst.slice(0, 4)}_${cleanLast.slice(0, 4)}_${Math.floor(10 + Math.random() * 90)}`;
+    }
+
+    // Check username uniqueness
+    const existing = users.find((u) => u.username.toLowerCase() === targetUsername);
+    if (existing) {
+      alert(`El nombre de usuario "${targetUsername}" ya está en uso. Por favor elige otro o deja el campo vacío para auto-generarlo.`);
+      return;
+    }
 
     // Generate temporary password
     const temporaryPassword = `Clover#${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newUser: User = {
       id: 'usr_' + Date.now(),
-      username: generatedUsername,
+      username: targetUsername,
       passwordHash: hashPassword(temporaryPassword),
       role: newRole,
       fullName: newFullName.trim(),
@@ -162,13 +188,86 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
 
     setUsers(db.getUsers());
     setGeneratedCredentials({
-      username: generatedUsername,
+      username: targetUsername,
       temporaryPassword: temporaryPassword,
       fullName: newFullName,
       role: newRole,
       subject: newRole === 'profesor' ? newSpecialty : undefined,
     });
     setNewFullName('');
+    setNewCustomUsername('');
+  };
+
+  const handleOpenEditUser = (u: User) => {
+    setEditingUser(u);
+    setEditFullName(u.fullName);
+    setEditUsername(u.username);
+    setEditRole(u.role);
+    setEditGrade(u.grade || '3° Secundaria');
+    setEditSubject(u.subject || u.specialty || 'Ciencias Naturales y Matemáticas');
+    setEditActive(u.active);
+    setEditForcePasswordChange(!!u.firstLogin);
+    setEditError('');
+  };
+
+  const handleSaveEditUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !editFullName.trim() || !editUsername.trim()) return;
+
+    const cleanUsername = editUsername.trim().toLowerCase();
+    const existing = users.find(
+      (u) => u.id !== editingUser.id && u.username.toLowerCase() === cleanUsername
+    );
+    if (existing) {
+      setEditError('El nombre de usuario ya está registrado por otro usuario. Elige uno diferente.');
+      return;
+    }
+
+    const updated: User = {
+      ...editingUser,
+      fullName: editFullName.trim(),
+      username: cleanUsername,
+      role: editRole,
+      grade: editRole === 'estudiante' ? editGrade : undefined,
+      subject: editRole === 'profesor' ? editSubject : undefined,
+      specialty: editRole === 'profesor' ? editSubject : undefined,
+      active: editActive,
+      firstLogin: editForcePasswordChange,
+    };
+
+    db.saveUser(updated);
+    db.addAuditLog({
+      userId: user.id,
+      userName: user.fullName,
+      userRole: user.role,
+      action: 'MODIFICAR_USUARIO',
+      details: `Usuario ${updated.username} modificado. Nombre: ${updated.fullName}, Rol: ${updated.role}, Estado: ${updated.active ? 'Activo' : 'Inactivo'}, Forzar cambio de clave: ${updated.firstLogin ? 'Sí' : 'No'}.`,
+    });
+
+    setUsers(db.getUsers());
+    setEditingUser(null);
+  };
+
+  const handleDeleteUser = (targetUser: User) => {
+    if (targetUser.id === user.id) {
+      alert('Por motivos de seguridad no puedes eliminar la cuenta de administrador con la que estás en sesión.');
+      return;
+    }
+    if (
+      window.confirm(
+        `¿Confirmas que deseas eliminar de forma permanente la cuenta de "${targetUser.fullName}" (${targetUser.username})? Esta acción no se puede deshacer.`
+      )
+    ) {
+      db.deleteUser(targetUser.id);
+      db.addAuditLog({
+        userId: user.id,
+        userName: user.fullName,
+        userRole: user.role,
+        action: 'ELIMINAR_USUARIO',
+        details: `Usuario ${targetUser.username} (${targetUser.role}) eliminado permanentemente del sistema.`,
+      });
+      setUsers(db.getUsers());
+    }
   };
 
   const handleToggleUserActive = (targetUser: User) => {
@@ -301,17 +400,44 @@ Contraseña Temporal: ${generatedCredentials.temporaryPassword}
             </p>
           </div>
 
-          <button
-            id="btn-admin-create-user"
-            onClick={() => {
-              setGeneratedCredentials(null);
-              setShowCreateUserModal(true);
-            }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F39200] hover:bg-[#d88200] text-white text-xs font-bold shadow-md shadow-[#F39200]/25 transition"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Generar Nuevo Usuario y Credenciales</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {onOpenProfile && (
+              <button
+                id="btn-admin-open-profile"
+                onClick={onOpenProfile}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition backdrop-blur-xs shadow-xs"
+                title="Editar mi nombre, foto de perfil y contraseña"
+              >
+                <div className="w-5 h-5 rounded-lg overflow-hidden border border-white/40 shrink-0">
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.fullName}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-[#F39200] text-white flex items-center justify-center text-[10px] font-black">
+                      {user.fullName[0]}
+                    </div>
+                  )}
+                </div>
+                <span>Mi Perfil (Nombre, Foto, Clave)</span>
+              </button>
+            )}
+
+            <button
+              id="btn-admin-create-user"
+              onClick={() => {
+                setGeneratedCredentials(null);
+                setShowCreateUserModal(true);
+              }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#F39200] hover:bg-[#d88200] text-white text-xs font-bold shadow-md shadow-[#F39200]/25 transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Generar Nuevo Usuario y Credenciales</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -552,16 +678,48 @@ Contraseña Temporal: ${generatedCredentials.temporaryPassword}
                       </button>
                     </td>
                     <td className="p-3 text-right">
-                      <button
-                        onClick={() => {
-                          setResettingUser(u);
-                          handleResetPassword(u);
-                        }}
-                        className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
-                        title="Restablecer contraseña a temporal"
-                      >
-                        Restablecer clave
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            if (u.id === user.id && onOpenProfile) {
+                              onOpenProfile();
+                            } else {
+                              handleOpenEditUser(u);
+                            }
+                          }}
+                          className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold flex items-center gap-1 transition ${
+                            u.id === user.id
+                              ? 'border-[#188E40]/30 bg-[#188E40]/5 text-[#188E40] hover:bg-[#188E40]/10'
+                              : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                          title={u.id === user.id ? 'Editar mi perfil (nombre, foto y contraseña)' : 'Editar datos, rol y estado del usuario'}
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          <span>{u.id === user.id ? 'Mi Perfil' : 'Editar'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setResettingUser(u);
+                            handleResetPassword(u);
+                          }}
+                          className="px-2.5 py-1 rounded-lg border border-amber-200 bg-amber-50 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 flex items-center gap-1 transition"
+                          title="Restablecer a contraseña temporal y exigir cambio obligatorio en próximo acceso"
+                        >
+                          <KeyRound className="w-3 h-3 text-[#F39200]" />
+                          <span>Restablecer</span>
+                        </button>
+
+                        {u.id !== user.id && (
+                          <button
+                            onClick={() => handleDeleteUser(u)}
+                            className="p-1.5 rounded-lg border border-transparent text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -860,6 +1018,22 @@ Contraseña Temporal: ${generatedCredentials.temporaryPassword}
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Usuario Institucional (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newCustomUsername}
+                    onChange={(e) => setNewCustomUsername(e.target.value)}
+                    placeholder="Ej. docente_andres o dejar vacío para auto-generar"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono focus:border-[#188E40]"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Si se deja vacío, el sistema asignará el prefijo institucional automáticamente (est_, prf_, adm_).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                     Rol Institucional
                   </label>
                   <select
@@ -939,6 +1113,167 @@ Contraseña Temporal: ${generatedCredentials.temporaryPassword}
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Usuario */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Editar Usuario</h3>
+                  <p className="text-[11px] text-slate-500">Modificación de datos, rol institucional y estado</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingUser(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEditUser} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Nombre Completo
+                </label>
+                <input
+                  type="text"
+                  value={editFullName}
+                  onChange={(e) => setEditFullName(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:border-[#188E40]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Usuario Institucional
+                </label>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono focus:border-[#188E40]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Rol Institucional
+                </label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value as UserRole)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
+                >
+                  <option value="estudiante">Estudiante</option>
+                  <option value="profesor">Profesor / Docente</option>
+                  <option value="administrador">Administrador Escolar</option>
+                </select>
+              </div>
+
+              {editRole === 'estudiante' && (
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Grado / Nivel
+                  </label>
+                  <input
+                    type="text"
+                    value={editGrade}
+                    onChange={(e) => setEditGrade(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
+                  />
+                </div>
+              )}
+
+              {editRole === 'profesor' && (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Materia / Asignatura Oficial
+                  </label>
+                  <select
+                    value={editSubject}
+                    onChange={(e) => setEditSubject(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
+                  >
+                    <option value="Ciencias Naturales y Matemáticas">Ciencias Naturales y Matemáticas</option>
+                    <option value="Matemáticas y Álgebra">Matemáticas y Álgebra</option>
+                    <option value="Ciencias y Biología">Ciencias y Biología</option>
+                    <option value="Física y Química">Física y Química</option>
+                    <option value="Lengua Española y Literatura">Lengua Española y Literatura</option>
+                    <option value="Historia y Geografía">Historia y Geografía</option>
+                    <option value="Inglés y Lenguas Extranjeras">Inglés y Lenguas Extranjeras</option>
+                    <option value="Formación Cívica y Ética">Formación Cívica y Ética</option>
+                    <option value="Educación Artística">Educación Artística</option>
+                    <option value="Tecnología e Informática">Tecnología e Informática</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="O especifica otra materia personalizada..."
+                    value={editSubject}
+                    onChange={(e) => setEditSubject(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-700"
+                  />
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={editActive}
+                    onChange={(e) => setEditActive(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#188E40] focus:ring-[#188E40]"
+                  />
+                  <span className="text-xs font-semibold text-slate-800">
+                    Cuenta activa (permitir inicio de sesión)
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={editForcePasswordChange}
+                    onChange={(e) => setEditForcePasswordChange(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#F39200] focus:ring-[#F39200]"
+                  />
+                  <span className="text-xs font-medium text-slate-700">
+                    Exigir cambio obligatorio de contraseña en el próximo acceso
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[#188E40] hover:bg-[#126830] text-white font-bold transition shadow-xs"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

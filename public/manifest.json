@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "CLOVER IA — Asistente Educativo",
+  "short_name": "CLOVER IA",
+  "description": "Asistente Educativo Inteligente de Clover Hills Educative System con tutoría personalizada y gestión integral.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F8FAF6",
+  "theme_color": "#188E40",
+  "icons": [
+    {
+      "src": "/clover-icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

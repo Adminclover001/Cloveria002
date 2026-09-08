@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#188E40"/>
+      <stop offset="60%" stop-color="#126830"/>
+      <stop offset="100%" stop-color="#0a401c"/>
+    </linearGradient>
+    <linearGradient id="cloverGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BCDB14"/>
+      <stop offset="100%" stop-color="#96C22E"/>
+    </linearGradient>
+    <linearGradient id="cloverGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#96C22E"/>
+      <stop offset="100%" stop-color="#188E40"/>
+    </linearGradient>
+    <linearGradient id="orangeSpark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFAE34"/>
+      <stop offset="100%" stop-color="#F39200"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded rect -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle border highlight -->
+  <rect x="8" y="8" width="496" height="496" rx="104" fill="none" stroke="#FFFFFF" stroke-opacity="0.15" stroke-width="6"/>
+
+  <!-- Clover Leaves Group -->
+  <g transform="translate(256, 230)" filter="url(#shadow)">
+    <!-- Top Leaf -->
+    <path d="M 0,-15 C -45,-15 -80,-50 -80,-95 C -80,-140 -40,-165 0,-130 C 40,-165 80,-140 80,-95 C 80,-50 45,-15 0,-15 Z" fill="url(#cloverGrad1)"/>
+    <!-- Right Leaf -->
+    <path d="M 15,0 C 15,-45 50,-80 95,-80 C 140,-80 165,-40 130,0 C 165,40 140,80 95,80 C 50,80 15,45 15,0 Z" fill="url(#cloverGrad2)"/>
+    <!-- Bottom Leaf -->
+    <path d="M 0,15 C 45,15 80,50 80,95 C 80,140 40,165 0,130 C -40,165 -80,140 -80,95 C -80,50 -45,15 0,15 Z" fill="url(#cloverGrad1)"/>
+    <!-- Left Leaf -->
+    <path d="M -15,0 C -15,45 -50,80 -95,80 C -140,80 -165,40 -130,0 C -165,-40 -140,-80 -95,-80 C -50,-80 -15,-45 -15,0 Z" fill="url(#cloverGrad2)"/>
+    <!-- Clover Stem -->
+    <path d="M -6,22 C -6,65 14,105 48,135 C 50,137 54,136 53,132 C 32,95 18,55 12,22 Z" fill="#96C22E"/>
+    <!-- Center AI Sparkle / Core -->
+    <circle cx="0" cy="0" r="22" fill="#FFFFFF"/>
+    <circle cx="0" cy="0" r="14" fill="url(#orangeSpark)"/>
+  </g>
+
+  <!-- AI Sparkle Badge (Top Right) -->
+  <g transform="translate(370, 110)">
+    <circle cx="0" cy="0" r="38" fill="url(#orangeSpark)" filter="url(#shadow)"/>
+    <!-- 4-point sparkle star -->
+    <path d="M 0,-24 Q 0,0 24,0 Q 0,0 0,24 Q 0,0 -24,0 Q 0,0 0,-24 Z" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Banner Text: CLOVER IA -->
+  <text x="256" y="445" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="44" fill="#FFFFFF" letter-spacing="4">CLOVER IA</text>
+  <text x="256" y="475" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="500" font-size="16" fill="#BCDB14" letter-spacing="3">EDUCATIVE SYSTEM</text>
+</svg>

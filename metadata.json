@@ -1,0 +1,8 @@
+{
+  "name": "CLOVER IA",
+  "description": "Asistente Educativo Inteligente para Clover Hills Educative System con tutoría paso a paso, gestión para profesores y administración escolar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
